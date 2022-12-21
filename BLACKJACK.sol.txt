@@ -1,0 +1,330 @@
+pragma solidity ^0.7.0;
+
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
+
+// The contract uses the SafeMath library for safe arithmetic operations
+// and the SafeERC20 library for safe ERC20 token transfers
+using SafeMath for uint256;
+using SafeERC20 for ERC20;
+
+// The contract is an ERC20 token contract, so it must implement the ERC20 interface
+// The ERC20 interface defines the standard functions for an ERC20 token
+contract Blackjack is ERC20 {
+    // The contract uses the "SafeERC20" library, which provides safe versions
+    // of the ERC20 functions "transfer" and "transferFrom".
+    // These functions will revert if the transfer fails,
+    // for example if the sender does not have enough tokens.
+
+    // The contract has a dev wallet address, which will receive a percentage
+    // of each bet as a fee
+    address public devWallet;
+
+    // The contract maintains a list of players who are participating in the game
+    mapping(address => bool) public players;
+
+    // The contract maintains a list of players who are currently in the game
+    mapping(address => bool) public inGame;
+
+    // The contract maintains a list of players who have finished their turn
+    mapping(address => bool) public turnFinished;
+
+    // The contract maintains the current bet for each player
+    mapping(address => uint256) public bets;
+
+    // The contract maintains the current hand for each player
+    // Each hand is represented as an array of integers, where each integer
+    // represents the value of a card in the hand
+    // For example, a hand containing an Ace and a 10 would be [1, 10]
+    mapping(address => uint256[]) public hands;
+
+    // The contract maintains the current score for each player
+    // The score is the sum of the values of the cards in the player's hand
+    mapping(address => uint256) public scores;
+
+    // The contract maintains a list of cards that have been dealt
+    uint256[] public dealtCards;
+
+    // The contract maintains a list of cards that are remaining in the deck
+    uint256[] public remainingCards;
+
+    // The contract has a minimum and maximum bet amount
+    uint256 public minBet;
+    uint256 public maxBet;
+
+    // The contract has a constructor function that is called when the contract is deployed
+    // The constructor sets the dev wallet address and initializes the deck of cards
+    constructor(address _devWallet) public {
+        devWallet = _devWallet;
+        minBet = 1;
+        maxBet = 1000;
+        initializeDeck();
+    }
+
+    // The "joinGame" function allows a player to join the game
+    function joinGame() public {
+        // Only players who are not already in the game can join
+        require(!players[msg.sender]);// The "placeBet" function allows a player to place a bet on the game
+function placeBet(uint256 _bet) public {
+    // Only players who have joined the game and are not already in the game can place a bet
+    require(players[msg.sender] && !inGame[msg.sender]);
+
+    // The bet must be within the minimum and maximum bet limits
+    require(_bet >= minBet && _bet <= maxBet);
+
+    // The player must have enough tokens to place the bet
+    require(_bet <= balanceOf(msg.sender));
+
+    // The player's bet is added to the contract's balance
+    ERC20(_bet).transferFrom(msg.sender, address(this));
+
+    // The player's bet is recorded
+    bets[msg.sender] = _bet;
+
+    // The player is added to the list of players who are in the game
+    inGame[msg.sender] = true;
+}
+
+// The "startGame" function starts the game when all players have placed their bets
+function startGame() public {
+    // Only players who have joined the game and placed a bet can start the game
+    require(players[msg.sender] && inGame[msg.sender]);
+
+    // The game can only be started when all players have placed their bets
+    uint256 numPlayers = players.length;
+    uint256 numPlayersInGame = 0;
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]]) {
+            numPlayersInGame++;
+        }
+    }
+    require(numPlayersInGame == numPlayers);
+
+    // The dev wallet receives a percentage of each bet as a fee
+    uint256 devFee = 0;
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]]) {
+            devFee = devFee.add(bets[players[i]].mul(6).div(100
+        players[msg.sender] = true; 
+    }
+for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]]) {
+            devFee = devFee.add(bets[players[i]].mul(6).div(100));
+        }
+    }
+    devWallet.transfer(devFee);
+
+    // Each player is dealt two cards
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]]) {
+            dealCard(players[i]);
+            dealCard(players[i]);
+        }
+    }
+}
+
+// The "dealCard" function deals a card to a player
+function dealCard(address _player) private {
+    // A card is removed from the list of remaining cards
+    uint256 numRemainingCards = remainingCards.length;
+    uint256 card = remainingCards[numRemainingCards - 1];
+    remainingCards.length--;
+
+    // The card is added to the player's hand
+    hands[_player].push(card);
+
+    // The card is added to the list of dealt cards
+    dealtCards.push(card);
+
+    // The player's score is updated
+    updateScore(_player);
+}
+
+// The "updateScore" function updates a player's score
+function updateScore(address _player) private {
+    // The player's score is the sum of the values of the cards in their hand
+    uint256 score = 0;
+    uint256 numCards = hands[_player].length;
+    for (uint256 i = 0; i < numCards; i++) {
+        uint256 card = hands[_player][i];
+        if (card >= 10) {
+            // Face cards are worth 10 points
+            score = score.add(10);
+        } else if (card == 1) {
+            // Aces are worth 1 or 11 points
+            if (score + 11 <= 21) {
+                // The Ace is worth 11 points if it doesn't cause the score to exceed 21
+                score = score.add(11);
+            } else {
+                // The Ace is worth 1 point if it would cause the score to exceed 21
+                score = score.add(1);
+            }
+        } else {
+            // All other cards are worth their face value
+            score = score.add(card);
+        }
+    }
+    scores[_player] = score;
+}
+
+// The "hit" function allows a player to take another card
+function hit() public {
+    // Only players who are in the game and have not finished their turn can take a card
+    require(inGame[msg.sender] && !turnFinished[msg.sender]);
+
+    // The player is dealt another card
+    dealCard(msg.sender);
+
+    // If the player's score exceeds 21, they lose the game
+    if (scores[msg.sender] > 21) {
+        endTurn();
+    }
+}
+
+// The "stand" function allows a player to end their turn
+function stand() public {
+    // Only players who are in the game and have not finished their turn can end their turn
+    require // Only players who are in the game and have not finished their turn can end their turn
+    require(inGame[msg.sender] && !turnFinished[msg.sender]);
+
+    // The player's turn is ended
+    endTurn();
+}
+
+// The "endTurn" function ends a player's turn
+function endTurn() private {
+    // The player's turn is marked as finished
+    turnFinished[msg.sender] = true;
+
+    // If all players have finished their turn, the game is over
+    bool gameOver = true;
+    uint256 numPlayers = players.length;
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]] && !turnFinished[players[i]]) {
+            gameOver = false;
+            break;
+        }
+    }
+    if (gameOver) {
+        endGame();
+    }
+}
+
+// The "endGame" function ends the game and distributes the winnings
+function endGame() private {
+    // The dev wallet receives a percentage of each bet as a fee
+    uint256 devFee = 0;
+    uint256 numPlayers = players.length;
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]]) {
+            devFee = devFee.add(bets[players[i]].mul(6).div(100));
+        }
+    }
+    devWallet.transfer(devFee);
+
+    // The player with the highest score below 21 wins the game
+    address winner;
+    uint256 winningScore = 0;
+    for (uint256 i = 0; i < numPlayers; i++) {
+        if (inGame[players[i]] && scores[players[i]] <= 21 && scores[players[i]] > winningScore) {
+            winner = players[i];
+            winningScore = scores[players[i]];
+        }
+    }
+
+    // If there is a winner, they receive their winnings
+    if (winningScore > 0) {
+        uint256 winnings = 0;
+        for (uint256 i = 0; i < numPlayers; i++) {
+            if (inGame[players[i]] && players[i] != winner) {
+                winnings = winnings.add(bets[players[i]]);
+            }
+        }
+        ERC20(winnings).transfer(winner);
+    }
+
+    // The game is reset
+    resetGame();
+}
+
+// The "resetGame" function resets the game state
+function resetGame() private {
+    // The list of players is cleared
+    delete players;
+
+    // The list of players in the game is cleared
+    delete inGame;
+
+    // The list of players who have finished their turn is cleared
+    delete turnFinished;
+
+    // The bets are cleared
+    delete bets;
+
+    // The hands are cleared
+    delete hands;
+
+    // The scores are cleared
+    delete scores;
+
+    // The dealt cards are cleared
+    delete dealtCards;
+
+    // The remaining cards are set to the full deck// The remaining cards are set to the full deck
+    remainingCards = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10];
+}
+
+// The "getPlayers" function returns the list of players
+function getPlayers() public view returns (address[] memory) {
+    return players;
+}
+
+// The "getInGame" function returns the list of players who are in the game
+function getInGame() public view returns (bool[] memory) {
+    return inGame;
+}
+
+// The "getTurnFinished" function returns the list of players who have finished their turn
+function getTurnFinished() public view returns (bool[] memory) {
+    return turnFinished;
+}
+
+// The "getBets" function returns the bets of the players
+function getBets() public view returns (uint256[] memory) {
+    return bets;
+}
+
+// The "getHands" function returns the hands of the players
+function getHands() public view returns (uint256[][] memory) {
+    return hands;
+}
+
+// The "getScores" function returns the scores of the players
+function getScores() public view returns (uint256[] memory) {
+    return scores;
+}
+
+// The "getDealtCards" function returns the list of dealt cards
+function getDealtCards() public view returns (uint256[] memory) {
+    return dealtCards;
+}
+
+// The "getRemainingCards" function returns the list of remaining cards
+function getRemainingCards() public view returns (uint256[] memory) {
+    return remainingCards;
+}
+
+// The "getDevWallet" function returns the dev wallet
+function getDevWallet() public view returns (address) {
+    return devWallet;
+}
+
+// The "getMinBet" function returns the minimum bet
+function getMinBet() public view returns (uint256) {
+    return minBet;
+}
+
+// The "getMaxBet" function returns the maximum bet
+function getMaxBet() public view returns (uint256) {
+    return maxBet;
+}

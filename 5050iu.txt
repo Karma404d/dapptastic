@@ -1,0 +1,89 @@
+                                */<!-- HTML file -->
+<html>
+  <head>
+    <title>ANARCHY 50/50</title>
+  </head>
+  <body>
+    <h1>The ANARCHY  Games 5 minute 5050</h1>
+    <div id="bet-form">
+      <form>
+        <label for="amount">Enter bet amount:</label><br>
+        <input type="number" id="amount" min="0"><br>
+        <button type="submit" id="place-bet-button">Place bet</button>
+      </form> 
+    </div>
+    <div id="result">
+      <p id="result-text"></p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.3.0/dist/web3.min.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
+
+/* CSS file */
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+}
+
+#bet-form {
+  margin: 0 auto;
+  width: 400px;
+  text-align: center;
+}
+
+#bet-form form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#bet-form label {
+  margin-bottom: 10px;
+}
+
+#bet-form input {
+  width: 200px;
+  height: 30px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0 10px;
+}
+
+#bet-form button {
+  width: 200px;
+  height: 40px;
+  font-size: 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#result {
+  margin: 20px auto;
+  width: 400px;
+  text-align: center;
+}
+
+#result-text {
+  font-size: 16px;
+}
+
+// JavaScript file
+
+// Set up web3 provider and contract instance
+if (typeof web3 !== 'undefined') {
+  web3 = new Web3(web3.currentProvider);
+} else {
+  // Set the provider you want from Web3.providers
+  web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+}
+
+const anarchyContract = new web3.eth.Contract(ANARCHY_ABI, ANARCHY_ADDRESS);
+const coinFlipContract = new web3.eth.Contract(COINFLIP_ABI, COINFLIP_ADDRESS);

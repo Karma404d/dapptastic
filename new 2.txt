@@ -1,0 +1,7 @@
+ ping google.com -f -l 1492
+If this comes back as fragmented, decrease the number and retry until it isn't
+Keep track of the highest number that isn't fragmented
+﻿﻿﻿netsh int ipv4 set subinterface “Ethernet” mtu=1500 store=persistent
+netsh int ipv4 set subinterface “11” mtu=1500 store=persistent
+﻿﻿netsh interface ipv4 show subinterfaces
+If all the numbers except the top on the left are 1500, you did it!
